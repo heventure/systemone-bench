@@ -13,6 +13,8 @@ set(S1B_SOURCES
   src/Benchmark.cpp src/Benchmark.h
   src/RuntimeProbe.cpp src/RuntimeProbe.h
   src/LocalBackend.cpp src/LocalBackend.h
+  src/ModelCatalog.cpp src/ModelCatalog.h
+  src/ModelManagerDialog.cpp src/ModelManagerDialog.h
 )
 
 if(APPLE)
