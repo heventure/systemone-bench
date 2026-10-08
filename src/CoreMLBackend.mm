@@ -54,6 +54,7 @@ static id<MLFeatureProvider> zeroProvider(MLModel* model, QString& errorText) {
                     const QByteArray bytes=QString(
                         "TASK fill the form from the document, then submit\\n"
                         "FORM Contact details\\nELEMENT Edit \\\"Email address\\\" value=\\\"\\\"").toUtf8();
+                    const int n=qMin<int>(224,bytes.size());
                     for(int i=0;i<n;++i) a[i]=@((unsigned char)bytes[i]+1);
                 } else if (inputName=="option_ids" && a.count==32*96) {
                     const QStringList options={"fill E-mail: person@example.com","check","click","skip"};
