@@ -33,7 +33,12 @@ ModelManagerDialog::ModelManagerDialog(QWidget* parent):QDialog(parent),hw_(Mode
 }
 void ModelManagerDialog::selectionChanged(){
     int r=table_->currentRow(); if(r<0)return; const auto&m=models_[r];
-    status_->setText(QString("%1 — %2").arg(m.name,ModelCatalog::reason(m,hw_)));
+    QString extra;
+#ifdef Q_OS_MACOS
+    if(m.format.compare("ONNX",Qt::CaseInsensitive)==0)
+        extra=" — ONNX cannot be sent directly to Core ML; a model-specific Core ML artifact/recipe is required for ANE.";
+#endif
+    status_->setText(QString("%1 — %2%3").arg(m.name,ModelCatalog::reason(m,hw_),extra));
 }
 void ModelManagerDialog::downloadSelected(){
     int r=table_->currentRow(); if(r<0)return; const auto m=models_[r];
