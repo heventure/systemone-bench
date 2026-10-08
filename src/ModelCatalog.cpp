@@ -3,6 +3,7 @@
 #include <QSysInfo>
 #include <QStorageInfo>
 #include <QStandardPaths>
+#include <algorithm>
 #ifdef Q_OS_WIN
 #include <windows.h>
 #endif
