@@ -1,12 +1,18 @@
 #include "RuntimeProbe.h"
 #include <QSysInfo>
 #include <QProcess>
+#ifdef S1B_WITH_ONNXRUNTIME
+#include <onnxruntime_cxx_api.h>
+#endif
 #ifdef S1B_WITH_OPENVINO
 #include <openvino/openvino.hpp>
 #endif
 
 QString RuntimeProbe::report(){
     QString s="OS: "+QSysInfo::prettyProductName()+"\nCPU arch: "+QSysInfo::currentCpuArchitecture()+"\n";
+#ifdef S1B_WITH_ONNXRUNTIME
+    s+="ONNX Runtime: bundled "+QString::fromUtf8(OrtGetApiBase()->GetVersionString())+"\nONNX Runtime providers: CPU\n";
+#endif
 #ifdef Q_OS_WIN
     s+="Platform: Windows\n";
 #ifdef S1B_WITH_OPENVINO

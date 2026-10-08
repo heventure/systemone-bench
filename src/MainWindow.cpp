@@ -133,7 +133,15 @@ void MainWindow::openModelManager(){
         model_->setText(path);
         int i=backend_->findText(preferred,Qt::MatchFixedString);
         if(i>=0) backend_->setCurrentIndex(i);
-        statusBar()->showMessage("Model downloaded and selected: "+path,8000);
+        if(preferred=="Core ML"){
+            const int ane=device_->findText("CPU + Neural Engine",Qt::MatchFixedString);
+            if(ane>=0) device_->setCurrentIndex(ane);
+        }else if(preferred=="OpenVINO"){
+            const int npu=device_->findText("NPU",Qt::MatchFixedString);
+            if(npu>=0) device_->setCurrentIndex(npu);
+        }
+        statusBar()->showMessage("Model downloaded; starting benchmark: "+path,8000);
+        QTimer::singleShot(0,this,&MainWindow::runBench);
     });
     d->setAttribute(Qt::WA_DeleteOnClose); d->show();
 }

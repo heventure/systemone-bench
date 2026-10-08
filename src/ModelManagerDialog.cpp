@@ -4,6 +4,8 @@
 #include <QCryptographicHash>
 #include <QSaveFile>
 #include <algorithm>
+#include <memory>
+#include <functional>
 
 ModelManagerDialog::ModelManagerDialog(QWidget* parent):QDialog(parent),hw_(ModelCatalog::probe()),models_(ModelCatalog::models()){
     setWindowTitle("Model catalog & recommendations"); resize(900,480);
@@ -41,39 +43,68 @@ void ModelManagerDialog::selectionChanged(){
     }
 #endif
     status_->setText(QString("%1 — %2%3").arg(m.name,ModelCatalog::reason(m,hw_),extra));
+    bool ready=false; for(const auto&a:ModelCatalog::compatibleArtifacts(m,hw_)) ready|=a.benchmarkReady;
+    download_->setText(ready ? "Download & Test" : "Download selected");
 }
 void ModelManagerDialog::downloadSelected(){
     int r=table_->currentRow(); if(r<0)return; const auto m=models_[r];
     const auto compatible=ModelCatalog::compatibleArtifacts(m,hw_);
     if(compatible.isEmpty()){status_->setText("No artifact is compatible with a runtime in this build.");return;}
     const ModelArtifact* chosen=nullptr;
-    for(const auto&a:compatible) if(a.benchmarkReady && !a.url.isEmpty()){chosen=&a;break;}
-    if(!chosen) for(const auto&a:compatible) if(!a.url.isEmpty()){chosen=&a;break;}
+    for(const auto&a:compatible) if(a.benchmarkReady && (!a.url.isEmpty() || !a.files.isEmpty())){chosen=&a;break;}
+    if(!chosen) for(const auto&a:compatible) if(!a.url.isEmpty() || !a.files.isEmpty()){chosen=&a;break;}
     if(!chosen){status_->setText("This model is catalog preview only: a complete downloadable artifact/adapter is not available yet.");return;}
     const auto a=*chosen;
-    QDir dir(ModelCatalog::cacheDir()); dir.mkpath(m.id);
-    const QString path=dir.filePath(m.id+"/"+a.fileName);
-    QDir().mkpath(QFileInfo(path).absolutePath());
-    download_->setEnabled(false); status_->setText("Downloading "+m.name+" ("+a.runtime+"/"+a.format+")…");
-    auto*nam=new QNetworkAccessManager(this); auto*reply=nam->get(QNetworkRequest(QUrl(a.url)));
-    connect(reply,&QNetworkReply::downloadProgress,this,[this,m](qint64 got,qint64 total){
-      status_->setText(total>0?QString("Downloading %1… %2%").arg(m.name).arg(got*100/total):"Downloading "+m.name+"…");
-    });
-    connect(reply,&QNetworkReply::finished,this,[=]{
-      download_->setEnabled(true);
-      if(reply->error()!=QNetworkReply::NoError){status_->setText("Download failed: "+reply->errorString());reply->deleteLater();return;}
-      const QByteArray data=reply->readAll();
-      if(!a.sha256.isEmpty() && QCryptographicHash::hash(data,QCryptographicHash::Sha256).toHex()!=a.sha256.toLatin1()){
-        status_->setText("SHA-256 verification failed; file was not saved.");reply->deleteLater();return;
-      }
-      QSaveFile file(path); if(!file.open(QIODevice::WriteOnly)||file.write(data)!=data.size()||!file.commit()){
-        status_->setText("Could not save model.");reply->deleteLater();return;
-      }
-      if(!a.benchmarkReady){
-        status_->setText("Downloaded, but this artifact still requires the "+m.adapter+" semantic adapter before benchmarking.");
-        reply->deleteLater(); return;
-      }
-      status_->setText("Ready: "+path);
-      emit modelReady(path,a.runtime); reply->deleteLater();
-    });
+
+    QList<ModelFile> files=a.files;
+    if(files.isEmpty()) files << ModelFile{a.url,a.fileName,a.sha256,a.sizeBytes};
+
+    const QString modelDir=ModelCatalog::cacheDir()+"/"+m.id;
+    const QString artifactRoot=a.files.isEmpty()?modelDir:modelDir+"/"+a.fileName;
+    QDir().mkpath(artifactRoot);
+    download_->setEnabled(false);
+
+    auto* nam=new QNetworkAccessManager(this);
+    auto index=std::make_shared<int>(0);
+    auto next=std::make_shared<std::function<void()>>();
+    *next=[=]() {
+        if(*index>=files.size()){
+            download_->setEnabled(true);
+            const QString readyPath=a.files.isEmpty()?modelDir+"/"+a.fileName:artifactRoot;
+            if(!a.benchmarkReady){
+                status_->setText("Downloaded, but this artifact still requires the "+m.adapter+" semantic adapter before benchmarking.");
+            }else{
+                status_->setText("Ready: "+readyPath);
+                emit modelReady(readyPath,a.runtime);
+            }
+            nam->deleteLater(); return;
+        }
+        const int i=(*index)++; const auto mf=files[i];
+        const QString path=(a.files.isEmpty()?modelDir:artifactRoot)+"/"+mf.relativePath;
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        status_->setText(QString("Downloading %1… file %2/%3").arg(m.name).arg(i+1).arg(files.size()));
+        auto* reply=nam->get(QNetworkRequest(QUrl(mf.url)));
+        connect(reply,&QNetworkReply::downloadProgress,this,[=](qint64 got,qint64 total){
+            if(total>0) status_->setText(QString("Downloading %1… file %2/%3 — %4%")
+                .arg(m.name).arg(i+1).arg(files.size()).arg(got*100/total));
+        });
+        connect(reply,&QNetworkReply::finished,this,[=](){
+            if(reply->error()!=QNetworkReply::NoError){
+                download_->setEnabled(true); status_->setText("Download failed: "+reply->errorString());
+                reply->deleteLater(); nam->deleteLater(); return;
+            }
+            const QByteArray data=reply->readAll();
+            if(!mf.sha256.isEmpty() && QCryptographicHash::hash(data,QCryptographicHash::Sha256).toHex()!=mf.sha256.toLatin1()){
+                download_->setEnabled(true); status_->setText("SHA-256 verification failed for "+mf.relativePath);
+                reply->deleteLater(); nam->deleteLater(); return;
+            }
+            QSaveFile file(path);
+            if(!file.open(QIODevice::WriteOnly)||file.write(data)!=data.size()||!file.commit()){
+                download_->setEnabled(true); status_->setText("Could not save "+mf.relativePath);
+                reply->deleteLater(); nam->deleteLater(); return;
+            }
+            reply->deleteLater(); (*next)();
+        });
+    };
+    (*next)();
 }

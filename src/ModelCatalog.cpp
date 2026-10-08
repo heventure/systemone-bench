@@ -26,6 +26,20 @@ HardwareProfile ModelCatalog::probe(){
 
 QList<CatalogModel> ModelCatalog::models(){
     return {
+      {"cua-s1-forms","CUA-S1-FORMS","CUA","supplied-action decision",1,
+       {"CPU","GPU","Neural Engine"},"cua-s1-forms",
+       "706K non-generative System-1 classifier. Native byte-level adapter; 2-32 supplied actions.",true,false,
+       {{"coreml-fp16","Core ML","Core ML package","",
+         "cua_s1_forms_fp16_options32.mlpackage","",1511163,true,
+         "Portable FP16 Core ML package; macOS 14+.",
+         {
+          {"https://huggingface.co/FluidInference/cua-s1-forms-coreml/resolve/ca2113d/cua_s1_forms_fp16_options32.mlpackage/Manifest.json",
+           "Manifest.json","2bc0f5f62337b27fb6b0ecde248f1e3dc269e1ba4b65516aaeede2a60e293dcc",617},
+          {"https://huggingface.co/FluidInference/cua-s1-forms-coreml/resolve/ca2113d/cua_s1_forms_fp16_options32.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+           "Data/com.apple.CoreML/model.mlmodel","70485fc18cbb21785df833cbddddc0b5b59acb00d22394b76e55307e2c135dd0",63800},
+          {"https://huggingface.co/FluidInference/cua-s1-forms-coreml/resolve/ca2113d/cua_s1_forms_fp16_options32.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+           "Data/com.apple.CoreML/weights/weight.bin","4da9259f798e44f5a1b50769ee1916fd3747c4d723dd9997b516c7fe238c7895",1446746}
+         }}}},
       {"s1-auto-router","S1 LLM Auto Router","System1 Models","fixed-schema routing decision",1,
        {"CPU","NPU"},"s1-router",
        "True seven-head System-1 router. Semantic adapter is the next implementation target.",false,false,

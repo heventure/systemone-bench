@@ -12,6 +12,13 @@ struct HardwareProfile {
     quint64 memoryBytes = 0;
 };
 
+struct ModelFile {
+    QString url;
+    QString relativePath;
+    QString sha256;
+    qint64 sizeBytes = 0;
+};
+
 struct ModelArtifact {
     QString id;
     QString runtime;
@@ -22,6 +29,7 @@ struct ModelArtifact {
     qint64 sizeBytes = 0;
     bool benchmarkReady = false;
     QString note;
+    QList<ModelFile> files;
 };
 
 struct CatalogModel {

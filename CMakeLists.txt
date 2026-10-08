@@ -5,6 +5,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
+set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to the ONNX Runtime SDK")
+find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+  HINTS "${ONNXRUNTIME_ROOT}/include")
+find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime
+  HINTS "${ONNXRUNTIME_ROOT}/lib")
+if(NOT ONNXRUNTIME_INCLUDE_DIR OR NOT ONNXRUNTIME_LIBRARY)
+  message(FATAL_ERROR "ONNX Runtime SDK not found; set ONNXRUNTIME_ROOT")
+endif()
+add_library(onnxruntime::onnxruntime UNKNOWN IMPORTED)
+set_target_properties(onnxruntime::onnxruntime PROPERTIES
+  IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY}"
+  INTERFACE_INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}")
 qt_standard_project_setup()
 
 set(S1B_SOURCES
@@ -15,6 +27,7 @@ set(S1B_SOURCES
   src/LocalBackend.cpp src/LocalBackend.h
   src/ModelCatalog.cpp src/ModelCatalog.h
   src/ModelManagerDialog.cpp src/ModelManagerDialog.h
+  src/OnnxRuntimeBackend.cpp src/OnnxRuntimeBackend.h
 )
 
 if(APPLE)
@@ -30,7 +43,9 @@ if(WIN32)
 endif()
 
 qt_add_executable(systemone-bench ${S1B_SOURCES})
-target_link_libraries(systemone-bench PRIVATE Qt6::Core Qt6::Widgets Qt6::Network)
+target_link_libraries(systemone-bench PRIVATE Qt6::Core Qt6::Widgets Qt6::Network onnxruntime::onnxruntime)
+target_compile_definitions(systemone-bench PRIVATE S1B_WITH_ONNXRUNTIME=1)
+message(STATUS "SystemOne Bench: ONNX Runtime backend enabled")
 
 if(APPLE)
   find_library(COREML_FRAMEWORK CoreML REQUIRED)

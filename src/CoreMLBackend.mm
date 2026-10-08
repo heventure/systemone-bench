@@ -3,6 +3,7 @@
 #import <CoreVideo/CoreVideo.h>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <cstring>
 
 static NSString* ns(const QString& s) {
     QByteArray u = s.toUtf8();
@@ -46,6 +47,24 @@ static id<MLFeatureProvider> zeroProvider(MLModel* model, QString& errorText) {
                 MLMultiArray* a = [[MLMultiArray alloc] initWithShape:c.shape dataType:c.dataType error:&err];
                 if (!a || err) { errorText = qs(err); return nil; }
                 for (NSInteger i = 0; i < a.count; ++i) a[i] = @0;
+
+                // Native adapter for CUA-S1-FORMS: UTF-8 bytes + 1, zero padded.
+                const QString inputName=QString::fromUtf8(key.UTF8String);
+                if (inputName=="context_ids" && a.count==224) {
+                    const QByteArray bytes=QString(
+                        "TASK fill the form from the document, then submit\\n"
+                        "FORM Contact details\\nELEMENT Edit \\\"Email address\\\" value=\\\"\\\"").toUtf8();
+                    const int n=qMin<int>(224,bytes.size());
+                    for(int i=0;i<n;++i) a[i]=@((unsigned char)bytes[i]+1);
+                } else if (inputName=="option_ids" && a.count==32*96) {
+                    const QStringList options={"fill E-mail: person@example.com","check","click","skip"};
+                    for(int o=0;o<options.size();++o){
+                        const QByteArray bytes=options[o].toUtf8(); const int n=qMin<int>(96,bytes.size());
+                        for(int i=0;i<n;++i) a[o*96+i]=@((unsigned char)bytes[i]+1);
+                    }
+                } else if (inputName=="option_mask" && a.count==32) {
+                    for(int i=0;i<4;++i) a[i]=@1;
+                }
                 values[key] = [MLFeatureValue featureValueWithMultiArray:a];
                 break;
             }
@@ -153,8 +172,11 @@ LocalRunResult CoreMLBackend::run(const QString& modelPath, const QString& devic
             MLFeatureDescription* d = model.modelDescription.inputDescriptionsByName[key];
             inputLines << QString("%1 (type %2)").arg(QString::fromUtf8(key.UTF8String)).arg((int)d.type);
         }
-        rr.details = QString("Backend: Core ML\nRequested compute units: %1\nInputs: %2")
-            .arg(device, inputLines.join(", "));
+        const bool cua=model.modelDescription.inputDescriptionsByName[@"context_ids"] &&
+                       model.modelDescription.inputDescriptionsByName[@"option_ids"] &&
+                       model.modelDescription.inputDescriptionsByName[@"option_mask"];
+        rr.details = QString("Backend: Core ML\\nRequested compute units: %1\\nAdapter: %2\\nInputs: %3")
+            .arg(device, cua ? "CUA-S1-FORMS native byte adapter" : "generic fixed-shape zero-input", inputLines.join(", "));
     }
     return rr;
 }
