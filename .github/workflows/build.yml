@@ -4,6 +4,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+
 jobs:
   build:
     strategy:
@@ -19,15 +20,37 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
           arch: ${{ matrix.qt_arch }}
           cache: true
+
+      - name: Install OpenVINO runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "openvino==2026.4.1"
+          $cmakePath = python -c "from openvino.utils import get_cmake_path; print(get_cmake_path())"
+          "OpenVINO_DIR=$cmakePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $packagePath = python -c "import openvino, pathlib; print(pathlib.Path(openvino.__file__).parent)"
+          "OPENVINO_PACKAGE_DIR=$packagePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python -c "from openvino import Core; print('OpenVINO CI devices:', Core().available_devices)"
+
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake -S . -B build -DOpenVINO_DIR="$OpenVINO_DIR"
+          else
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          fi
+
       - name: Build
         run: cmake --build build --config Release --parallel
+
       - name: Deploy Windows
         if: runner.os == 'Windows'
         shell: pwsh
@@ -35,12 +58,18 @@ jobs:
           New-Item -ItemType Directory -Force dist
           Copy-Item build/Release/systemone-bench.exe dist/SystemOneBench.exe
           windeployqt --release --no-translations dist/SystemOneBench.exe
+
+          # Bundle the OpenVINO runtime and plugins next to the executable.
+          Get-ChildItem -Path $env:OPENVINO_PACKAGE_DIR -Recurse -Filter *.dll |
+            ForEach-Object { Copy-Item $_.FullName dist -Force }
+
       - name: Deploy macOS
         if: runner.os == 'macOS'
         run: |
           mkdir -p dist
           cp -R build/systemone-bench.app dist/SystemOneBench.app
           macdeployqt dist/SystemOneBench.app
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
