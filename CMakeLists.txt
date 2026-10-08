@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
+find_package(onnxruntime CONFIG REQUIRED)
 qt_standard_project_setup()
 
 set(S1B_SOURCES
@@ -15,6 +16,7 @@ set(S1B_SOURCES
   src/LocalBackend.cpp src/LocalBackend.h
   src/ModelCatalog.cpp src/ModelCatalog.h
   src/ModelManagerDialog.cpp src/ModelManagerDialog.h
+  src/OnnxRuntimeBackend.cpp src/OnnxRuntimeBackend.h
 )
 
 if(APPLE)
@@ -30,7 +32,9 @@ if(WIN32)
 endif()
 
 qt_add_executable(systemone-bench ${S1B_SOURCES})
-target_link_libraries(systemone-bench PRIVATE Qt6::Core Qt6::Widgets Qt6::Network)
+target_link_libraries(systemone-bench PRIVATE Qt6::Core Qt6::Widgets Qt6::Network onnxruntime::onnxruntime)
+target_compile_definitions(systemone-bench PRIVATE S1B_WITH_ONNXRUNTIME=1)
+message(STATUS "SystemOne Bench: ONNX Runtime backend enabled")
 
 if(APPLE)
   find_library(COREML_FRAMEWORK CoreML REQUIRED)
