@@ -5,7 +5,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
-find_package(onnxruntime CONFIG REQUIRED)
+set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to the ONNX Runtime SDK")
+find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h
+  HINTS "${ONNXRUNTIME_ROOT}/include")
+find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime
+  HINTS "${ONNXRUNTIME_ROOT}/lib")
+if(NOT ONNXRUNTIME_INCLUDE_DIR OR NOT ONNXRUNTIME_LIBRARY)
+  message(FATAL_ERROR "ONNX Runtime SDK not found; set ONNXRUNTIME_ROOT")
+endif()
+add_library(onnxruntime::onnxruntime UNKNOWN IMPORTED)
+set_target_properties(onnxruntime::onnxruntime PROPERTIES
+  IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY}"
+  INTERFACE_INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}")
 qt_standard_project_setup()
 
 set(S1B_SOURCES
