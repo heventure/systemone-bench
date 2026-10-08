@@ -87,6 +87,18 @@ void MainWindow::probe(){
 void MainWindow::runBench(){
     if(backend_->currentText()!="HTTP API"){
         if(model_->text().isEmpty()){ QMessageBox::warning(this,"Model required","Choose a local model first."); return; }
+        const QString ext=QFileInfo(model_->text()).suffix().toLower();
+        if(backend_->currentText()=="Core ML" && ext!="mlmodel" && ext!="mlpackage" && ext!="mlmodelc"){
+            QMessageBox::warning(this,"Incompatible model",
+                "The selected model is not a Core ML model. Core ML accepts .mlmodel, .mlpackage and .mlmodelc. "
+                "Choose a compatible backend or convert the model first.");
+            return;
+        }
+        if(backend_->currentText()=="OpenVINO" && ext!="onnx" && ext!="xml"){
+            QMessageBox::warning(this,"Incompatible model",
+                "OpenVINO benchmark mode currently accepts .onnx or OpenVINO IR .xml models.");
+            return;
+        }
         auto b=createLocalBackend(backend_->currentText());
         if(!b){ QMessageBox::warning(this,"Backend unavailable","This backend is not available in this build."); return; }
         run_->setEnabled(false);
