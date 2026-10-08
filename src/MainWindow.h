@@ -24,4 +24,5 @@ private slots:
     void probe();
     void browseModel();
     void backendChanged();
+    void openModelManager();
 };
