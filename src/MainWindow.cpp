@@ -2,6 +2,7 @@
 #include "Benchmark.h"
 #include "LocalBackend.h"
 #include "RuntimeProbe.h"
+#include "ModelManagerDialog.h"
 #include <QtWidgets>
 #include <QJsonDocument>
 
@@ -29,6 +30,7 @@ MainWindow::MainWindow(){
     runs_->setRange(1,100000); runs_->setValue(100);
     run_=new QPushButton("Run benchmark");
     auto*probeBtn=new QPushButton("Probe hardware");
+    auto*catalogBtn=new QPushButton("Find & download model");
 
     mode->addWidget(new QLabel("Backend"),0,0); mode->addWidget(backend_,0,1);
     mode->addWidget(new QLabel("Device"),0,2); mode->addWidget(device_,0,3);
@@ -38,7 +40,7 @@ MainWindow::MainWindow(){
     mode->addWidget(url_,2,1,1,3);
     mode->addWidget(new QLabel("Warmup"),3,0); mode->addWidget(warm_,3,1);
     mode->addWidget(new QLabel("Runs"),3,2); mode->addWidget(runs_,3,3);
-    mode->addWidget(run_,3,4); mode->addWidget(probeBtn,3,5);
+    mode->addWidget(run_,3,4); mode->addWidget(probeBtn,3,5); mode->addWidget(catalogBtn,3,6);
     v->addLayout(mode);
 
     requestLabel_=new QLabel("Decision request JSON");
@@ -52,6 +54,7 @@ MainWindow::MainWindow(){
     connect(probeBtn,&QPushButton::clicked,this,&MainWindow::probe);
     connect(browse_,&QPushButton::clicked,this,&MainWindow::browseModel);
     connect(backend_,&QComboBox::currentTextChanged,this,&MainWindow::backendChanged);
+    connect(catalogBtn,&QPushButton::clicked,this,&MainWindow::openModelManager);
     backendChanged();
 }
 
@@ -110,4 +113,15 @@ void MainWindow::runBench(){
         run_->setEnabled(true); statusBar()->clearMessage(); b->deleteLater();
     });
     b->run(QUrl(url_->text()),d.object(),warm_->value(),runs_->value());
+}
+
+void MainWindow::openModelManager(){
+    auto*d=new ModelManagerDialog(this);
+    connect(d,&ModelManagerDialog::modelReady,this,[this](const QString& path,const QString& preferred){
+        model_->setText(path);
+        int i=backend_->findText(preferred,Qt::MatchFixedString);
+        if(i>=0) backend_->setCurrentIndex(i);
+        statusBar()->showMessage("Model downloaded and selected: "+path,8000);
+    });
+    d->setAttribute(Qt::WA_DeleteOnClose); d->show();
 }
