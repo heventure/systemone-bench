@@ -3,7 +3,9 @@
 #include <QtNetwork>
 #include <QCryptographicHash>
 #include <QSaveFile>
-#include <algorithm>\n#include <memory>\n#include <functional>
+#include <algorithm>
+#include <memory>
+#include <functional>
 
 ModelManagerDialog::ModelManagerDialog(QWidget* parent):QDialog(parent),hw_(ModelCatalog::probe()),models_(ModelCatalog::models()){
     setWindowTitle("Model catalog & recommendations"); resize(900,480);
