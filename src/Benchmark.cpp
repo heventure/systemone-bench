@@ -1,4 +1,5 @@
 #include "Benchmark.h"
+#include <QJsonDocument>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QEventLoop>
