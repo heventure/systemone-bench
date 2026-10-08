@@ -33,10 +33,10 @@ QList<CatalogModel> ModelCatalog::models(){
     // Curated manifest v1. URLs are deliberately explicit and can later move to a remote signed manifest.
     return {
       {"decima-small","Decima Small","Decima","typed decision","ONNX",
-       "https://huggingface.co/amyrmahdy/decima-small/resolve/main/model.onnx","decima-small.onnx","",0,2,
-       {"OpenVINO"},{"CPU","NPU"},"decima","True System-1 model; semantic benchmark requires the Decima adapter.",false},
+       "","decima-small.onnx","",0,2,
+       {"OpenVINO"},{"CPU","NPU"},"decima","True System-1 model (122M, int8 ONNX). Multi-file snapshot + Decima adapter required; catalog entry is informational until that adapter lands.",false},
       {"s1-auto-router","S1 LLM Auto Router","System1 Models","routing decision","ONNX",
-       "https://huggingface.co/system1models/s1-llm-auto-router/resolve/main/model.onnx","s1-llm-auto-router.onnx","",0,1,
+       "https://huggingface.co/system1models/s1-llm-auto-router/resolve/main/model.gq.onnx","s1-llm-auto-router.gq.onnx","",0,1,
        {"OpenVINO"},{"CPU","NPU"},"s1-router","Small multi-head System-1 router; adapter required for semantic inputs.",false},
       {"mobilenet-smoke","MobileNetV3 Small (runtime smoke test)","MobileNetV3","vision smoke test","ONNX",
        "https://huggingface.co/pyronear/mobilenet_v3_small/resolve/main/model.onnx","mobilenet-v3-small.onnx",
