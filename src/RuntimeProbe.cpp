@@ -11,7 +11,7 @@
 QString RuntimeProbe::report(){
     QString s="OS: "+QSysInfo::prettyProductName()+"\nCPU arch: "+QSysInfo::currentCpuArchitecture()+"\n";
 #ifdef S1B_WITH_ONNXRUNTIME
-    s+="ONNX Runtime: bundled "+QString::fromUtf8(Ort::GetApi().GetVersionString())+"\nONNX Runtime providers: CPU\n";
+    s+="ONNX Runtime: bundled "+QString::fromUtf8(OrtGetApiBase()->GetVersionString())+"\nONNX Runtime providers: CPU\n";
 #endif
 #ifdef Q_OS_WIN
     s+="Platform: Windows\n";
