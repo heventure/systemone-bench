@@ -1,0 +1,47 @@
+name: Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            qt_arch: win64_msvc2022_64
+            artifact: SystemOneBench-Windows-x64
+          - os: macos-14
+            qt_arch: clang_64
+            artifact: SystemOneBench-macOS-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Deploy Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist
+          Copy-Item build/Release/systemone-bench.exe dist/SystemOneBench.exe
+          windeployqt --release --no-translations dist/SystemOneBench.exe
+      - name: Deploy macOS
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          cp -R build/systemone-bench.app dist/SystemOneBench.app
+          macdeployqt dist/SystemOneBench.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
