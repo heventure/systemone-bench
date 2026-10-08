@@ -41,6 +41,8 @@ void ModelManagerDialog::selectionChanged(){
     }
 #endif
     status_->setText(QString("%1 — %2%3").arg(m.name,ModelCatalog::reason(m,hw_),extra));
+    bool ready=false; for(const auto&a:ModelCatalog::compatibleArtifacts(m,hw_)) ready|=a.benchmarkReady;
+    download_->setText(ready ? "Download & Test" : "Download selected");
 }
 void ModelManagerDialog::downloadSelected(){
     int r=table_->currentRow(); if(r<0)return; const auto m=models_[r];
