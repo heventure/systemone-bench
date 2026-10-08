@@ -1,16 +1,37 @@
 #include "RuntimeProbe.h"
 #include <QSysInfo>
 #include <QProcess>
-QString RuntimeProbe::report(){
- QString s="OS: "+QSysInfo::prettyProductName()+"\nCPU arch: "+QSysInfo::currentCpuArchitecture()+"\n";
-#ifdef Q_OS_WIN
- s+="Platform: Windows\nRecommended local accelerators: OpenVINO CPU/GPU/NPU; ONNX Runtime; CUDA adapter.\n";
- QProcess p; p.start("powershell",{"-NoProfile","-Command","Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"});
- if(p.waitForFinished(3000)) s+="Display/accelerators:\n"+QString::fromLocal8Bit(p.readAllStandardOutput());
-#elif defined(Q_OS_MACOS)
- s+="Platform: macOS\nRecommended local accelerators: Core ML CPU/GPU/ANE; Metal adapters.\n";
- QProcess p; p.start("system_profiler",{"SPHardwareDataType","SPDisplaysDataType"});
- if(p.waitForFinished(5000)) s+=QString::fromLocal8Bit(p.readAllStandardOutput());
+#ifdef S1B_WITH_OPENVINO
+#include <openvino/openvino.hpp>
 #endif
- return s;
+
+QString RuntimeProbe::report(){
+    QString s="OS: "+QSysInfo::prettyProductName()+"\nCPU arch: "+QSysInfo::currentCpuArchitecture()+"\n";
+#ifdef Q_OS_WIN
+    s+="Platform: Windows\n";
+#ifdef S1B_WITH_OPENVINO
+    s+="OpenVINO: compiled in\n";
+    try {
+        ov::Core core;
+        QStringList ds;
+        for(const auto& d:core.get_available_devices()) ds << QString::fromStdString(d);
+        s+="OpenVINO devices: "+ds.join(", ")+"\n";
+    } catch(const std::exception& e) {
+        s+="OpenVINO probe error: "+QString::fromUtf8(e.what())+"\n";
+    }
+#else
+    s+="OpenVINO: not included in this build\n";
+#endif
+    QProcess p;
+    p.start("powershell",{"-NoProfile","-Command",
+        "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name; "
+        "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"});
+    if(p.waitForFinished(3000)) s+="Windows devices:\n"+QString::fromLocal8Bit(p.readAllStandardOutput());
+#elif defined(Q_OS_MACOS)
+    s+="Platform: macOS\nCore ML: available\nMetal: available\n";
+    QProcess p;
+    p.start("system_profiler",{"SPHardwareDataType","SPDisplaysDataType"});
+    if(p.waitForFinished(5000)) s+=QString::fromLocal8Bit(p.readAllStandardOutput());
+#endif
+    return s;
 }
