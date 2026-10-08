@@ -71,9 +71,10 @@ LocalRunResult OnnxRuntimeBackend::run(const QString& modelPath,const QString& d
 
         auto infer=[&](){ auto out=session.Run(Ort::RunOptions{nullptr},inputNames.data(),inputs.data(),inputs.size(),outputNames.data(),outputNames.size()); };
         for(int i=0;i<warmup;++i) infer();
-        rr.summary.samplesMs.reserve(runs);
-        for(int i=0;i<runs;++i){ QElapsedTimer t;t.start(); infer(); rr.summary.samplesMs.push_back(t.nsecsElapsed()/1e6); }
-        rr.summary=Benchmark::summarize(rr.summary.samplesMs);
+        QList<BenchSample> samples;
+        samples.reserve(runs);
+        for(int i=0;i<runs;++i){ QElapsedTimer t;t.start(); infer(); BenchSample sample; sample.ms=t.nsecsElapsed()/1e6; sample.ok=true; sample.status=200; samples.push_back(sample); }
+        rr.summary=Benchmark::summarize(samples);
         rr.ok=true;
         rr.details=QString("Backend: ONNX Runtime\nExecution provider: %1\nInputs: %2").arg(device,details.join(", "));
     } catch(const Ort::Exception& e){ rr.error=QString::fromUtf8(e.what()); }
