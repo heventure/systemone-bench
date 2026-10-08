@@ -92,7 +92,20 @@ LocalRunResult CoreMLBackend::run(const QString& modelPath, const QString& devic
         NSError* err = nil;
         NSURL* source = [NSURL fileURLWithPath:ns(modelPath)];
         NSURL* compiledURL = source;
-        const QString suffix = QFileInfo(modelPath).suffix().toLower();
+        const QFileInfo fi(modelPath);
+        const QString suffix = fi.suffix().toLower();
+        const bool validSuffix = suffix == "mlmodel" || suffix == "mlpackage" || suffix == "mlmodelc";
+        if (!validSuffix) {
+            rr.error = QString("Incompatible model format: '%1'. Core ML only accepts .mlmodel, .mlpackage, or .mlmodelc. "
+                               "ONNX models must use an ONNX/OpenVINO backend or be converted to Core ML first.")
+                           .arg(suffix.isEmpty() ? QString("unknown") : suffix);
+            return rr;
+        }
+        if (!fi.exists()) { rr.error = "Model path does not exist: " + modelPath; return rr; }
+        if ((suffix == "mlpackage" || suffix == "mlmodelc") && !fi.isDir()) {
+            rr.error = QString(".%1 must be a Core ML package/directory, but the selected path is not a directory.").arg(suffix);
+            return rr;
+        }
 
         QElapsedTimer loadTimer; loadTimer.start();
         if (suffix != "mlmodelc") {
