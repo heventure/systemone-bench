@@ -37,6 +37,7 @@ void ModelManagerDialog::selectionChanged(){
 }
 void ModelManagerDialog::downloadSelected(){
     int r=table_->currentRow(); if(r<0)return; const auto m=models_[r];
+    if(m.url.isEmpty()){ status_->setText("This model needs a multi-file semantic adapter; direct download is not enabled yet."); return; }
     QDir().mkpath(ModelCatalog::cacheDir()); const QString path=ModelCatalog::cacheDir()+"/"+m.fileName;
     download_->setEnabled(false); status_->setText("Downloading "+m.name+"…");
     auto*nam=new QNetworkAccessManager(this); auto*reply=nam->get(QNetworkRequest(QUrl(m.url)));
