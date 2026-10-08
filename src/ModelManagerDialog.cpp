@@ -17,8 +17,9 @@ ModelManagerDialog::ModelManagerDialog(QWidget* parent):QDialog(parent),hw_(Mode
         const auto&m=models_[i]; const int sc=ModelCatalog::score(m,hw_);
         table_->setItem(i,0,new QTableWidgetItem(m.name));
         table_->setItem(i,1,new QTableWidgetItem(m.task));
-        table_->setItem(i,2,new QTableWidgetItem(m.format));
-        table_->setItem(i,3,new QTableWidgetItem(sc>=70?"Recommended":sc>=30?"Compatible":"Not recommended"));
+        QStringList formats; for(const auto&a:m.artifacts) formats<<a.format;
+        table_->setItem(i,2,new QTableWidgetItem(formats.join(" / ")));
+        table_->setItem(i,3,new QTableWidgetItem(ModelCatalog::status(m,hw_)));
         table_->setItem(i,4,new QTableWidgetItem(ModelCatalog::reason(m,hw_)));
         table_->setItem(i,5,new QTableWidgetItem(m.note));
     }
@@ -35,32 +36,44 @@ void ModelManagerDialog::selectionChanged(){
     int r=table_->currentRow(); if(r<0)return; const auto&m=models_[r];
     QString extra;
 #ifdef Q_OS_MACOS
-    if(m.format.compare("ONNX",Qt::CaseInsensitive)==0)
-        extra=" — ONNX cannot be sent directly to Core ML; a model-specific Core ML artifact/recipe is required for ANE.";
+    for(const auto&a:m.artifacts) if(a.format.compare("ONNX",Qt::CaseInsensitive)==0){
+        extra=" — ONNX cannot be sent directly to Core ML; a model-specific Core ML artifact/recipe is required for ANE."; break;
+    }
 #endif
     status_->setText(QString("%1 — %2%3").arg(m.name,ModelCatalog::reason(m,hw_),extra));
 }
 void ModelManagerDialog::downloadSelected(){
     int r=table_->currentRow(); if(r<0)return; const auto m=models_[r];
-    if(m.url.isEmpty()){ status_->setText("This model needs a multi-file semantic adapter; direct download is not enabled yet."); return; }
-    QDir().mkpath(ModelCatalog::cacheDir()); const QString path=ModelCatalog::cacheDir()+"/"+m.fileName;
-    download_->setEnabled(false); status_->setText("Downloading "+m.name+"…");
-    auto*nam=new QNetworkAccessManager(this); auto*reply=nam->get(QNetworkRequest(QUrl(m.url)));
-    connect(reply,&QNetworkReply::downloadProgress,this,[this,m](qint64 a,qint64 n){
-      status_->setText(n>0?QString("Downloading %1… %2%").arg(m.name).arg(a*100/n):"Downloading "+m.name+"…");
+    const auto compatible=ModelCatalog::compatibleArtifacts(m,hw_);
+    if(compatible.isEmpty()){status_->setText("No artifact is compatible with a runtime in this build.");return;}
+    const ModelArtifact* chosen=nullptr;
+    for(const auto&a:compatible) if(a.benchmarkReady && !a.url.isEmpty()){chosen=&a;break;}
+    if(!chosen) for(const auto&a:compatible) if(!a.url.isEmpty()){chosen=&a;break;}
+    if(!chosen){status_->setText("This model is catalog preview only: a complete downloadable artifact/adapter is not available yet.");return;}
+    const auto a=*chosen;
+    QDir dir(ModelCatalog::cacheDir()); dir.mkpath(m.id);
+    const QString path=dir.filePath(m.id+"/"+a.fileName);
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    download_->setEnabled(false); status_->setText("Downloading "+m.name+" ("+a.runtime+"/"+a.format+")…");
+    auto*nam=new QNetworkAccessManager(this); auto*reply=nam->get(QNetworkRequest(QUrl(a.url)));
+    connect(reply,&QNetworkReply::downloadProgress,this,[this,m](qint64 got,qint64 total){
+      status_->setText(total>0?QString("Downloading %1… %2%").arg(m.name).arg(got*100/total):"Downloading "+m.name+"…");
     });
     connect(reply,&QNetworkReply::finished,this,[=]{
       download_->setEnabled(true);
       if(reply->error()!=QNetworkReply::NoError){status_->setText("Download failed: "+reply->errorString());reply->deleteLater();return;}
       const QByteArray data=reply->readAll();
-      if(!m.sha256.isEmpty() && QCryptographicHash::hash(data,QCryptographicHash::Sha256).toHex()!=m.sha256.toLatin1()){
+      if(!a.sha256.isEmpty() && QCryptographicHash::hash(data,QCryptographicHash::Sha256).toHex()!=a.sha256.toLatin1()){
         status_->setText("SHA-256 verification failed; file was not saved.");reply->deleteLater();return;
       }
-      QSaveFile f(path); if(!f.open(QIODevice::WriteOnly)||f.write(data)!=data.size()||!f.commit()){
+      QSaveFile file(path); if(!file.open(QIODevice::WriteOnly)||file.write(data)!=data.size()||!file.commit()){
         status_->setText("Could not save model.");reply->deleteLater();return;
       }
+      if(!a.benchmarkReady){
+        status_->setText("Downloaded, but this artifact still requires the "+m.adapter+" semantic adapter before benchmarking.");
+        reply->deleteLater(); return;
+      }
       status_->setText("Ready: "+path);
-      QString backend=m.runtimes.isEmpty()?QString():m.runtimes.first();
-      emit modelReady(path,backend); reply->deleteLater();
+      emit modelReady(path,a.runtime); reply->deleteLater();
     });
 }
