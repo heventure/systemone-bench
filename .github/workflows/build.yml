@@ -75,7 +75,7 @@ jobs:
         shell: bash
         run: |
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake -S . -B build -DOpenVINO_DIR="$OpenVINO_DIR" -Donnxruntime_DIR="$ONNXRUNTIME_ROOT/lib/cmake/onnxruntime"
+            cmake -S . -B build -DOpenVINO_DIR="$OpenVINO_DIR" -DONNXRUNTIME_ROOT="$ONNXRUNTIME_ROOT"
           else
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Donnxruntime_DIR="$ONNXRUNTIME_ROOT/lib/cmake/onnxruntime"
           fi
