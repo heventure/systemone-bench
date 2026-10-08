@@ -34,7 +34,8 @@ jobs:
           if [ "${{ runner.os }}" = "Windows" ]; then
             curl -L -o ort.zip "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-win-x64-${ORT_VERSION}.zip"
             cmake -E tar xf ort.zip
-            echo "ONNXRUNTIME_ROOT=$PWD/onnxruntime-win-x64-${ORT_VERSION}" >> "$GITHUB_ENV"
+            ORT_ROOT="$(pwd -W)/onnxruntime-win-x64-${ORT_VERSION}"
+            echo "ONNXRUNTIME_ROOT=$ORT_ROOT" >> "$GITHUB_ENV"
           else
             curl -L -o ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-osx-arm64-${ORT_VERSION}.tgz"
             cmake -E tar xf ort.tgz
